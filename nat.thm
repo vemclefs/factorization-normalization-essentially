@@ -1,0 +1,153 @@
+/***********************************************************/
+/*              Definition of natural numbers              */
+/***********************************************************/
+
+Kind  nat  type.
+
+Type  z    nat.
+Type  s    nat -> nat.
+
+Close nat.
+
+Define nat : nat -> prop by
+  nat z;
+  nat (s N) := nat N.
+
+/***********************************************************/
+/*                        Addition                         */
+/***********************************************************/
+
+Define plus : nat -> nat -> nat -> prop by
+  plus z N N;
+  plus (s M) N (s K) := plus M N K.
+
+Theorem plus_nat1 : forall M N K, plus M N K -> nat M.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+
+Theorem plus_nat3 : forall M N K, nat N -> plus M N K -> nat K.
+induction on 2. intros. case H2.
+  search.
+  apply IH to H1 H3. search.
+
+Theorem plus_det : forall M N K1 K2, plus M N K1 -> plus M N K2 -> K1 = K2.
+induction on 1. intros. case H1.
+  case H2. search.
+  case H2. apply IH to H3 H4. search.
+
+Theorem plus_total : forall M N, nat M -> exists K, plus M N K.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2 with N = N. search.
+
+Theorem plus_total_nat : forall M N,
+  nat M -> nat N -> exists K, nat K /\ plus M N K.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3 H2. search.
+
+Theorem plus_assoc : forall A B C AB ABC,
+  plus A B AB -> plus AB C ABC -> exists BC, plus B C BC /\ plus A BC ABC.
+induction on 1. intros. case H1.
+  search.
+  case H2. apply IH to H3 H4. search.
+
+Theorem plus_assoc_rl : forall A B C BC ABC,
+  plus B C BC -> plus A BC ABC -> exists AB, plus A B AB /\ plus AB C ABC.
+induction on 2. intros. case H2.
+  search.
+  apply IH to H1 H3. search.
+
+Theorem plus_zero : forall N, nat N -> plus N z N.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+
+Theorem plus_succ : forall M N K, plus M N K -> plus M (s N) (s K).
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+
+Theorem plus_comm : forall M N K, nat N -> plus M N K -> plus N M K.
+induction on 2. intros. case H2.
+  backchain plus_zero.
+  apply IH to H1 H3. backchain plus_succ.
+
+Theorem plus_perm4 : forall A B C D AB CD ABCD,
+  plus A B AB -> plus C D CD -> plus AB CD ABCD ->
+  exists AC BD, plus A C AC /\ plus B D BD /\ plus AC BD ABCD.
+intros.
+apply plus_assoc to H1 H3.
+apply plus_assoc_rl to H2 H4.
+apply plus_comm to _ H6.
+  backchain plus_nat1.
+apply plus_assoc to H8 H7.
+apply plus_assoc_rl to H10 H5.
+search.
+
+/***********************************************************/
+/*                     Multiplication                      */
+/***********************************************************/
+
+Define times : nat -> nat -> nat -> prop by
+  times z N z;
+  times (s M) N K := exists MN, times M N MN /\ plus MN N K.
+
+Theorem times_nat1 : forall M N K, times M N K -> nat M.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+
+Theorem times_nat3 : forall M N K, nat N -> times M N K -> nat K.
+induction on 2. intros. case H2.
+  search.
+  backchain plus_nat3.
+
+Theorem times_det : forall M N K1 K2, times M N K1 -> times M N K2 -> K1 = K2.
+induction on 1. intros. case H1.
+  case H2. search.
+  case H2. apply IH to H3 H5. backchain plus_det.
+
+Theorem times_total_nat : forall M N,
+  nat M -> nat N -> exists K, nat K /\ times M N K.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3 H2. apply plus_total_nat to H4 H2. search.
+
+Theorem distribute_r : forall X Y Z X+Y T,
+  nat Z -> plus X Y X+Y -> times X+Y Z T ->
+  exists XZ YZ, times X Z XZ /\ times Y Z YZ /\ plus XZ YZ T.
+induction on 2. intros. case H2.
+  search.
+  case H3. apply IH to H1 H4 H5. apply plus_assoc to H9 H6.
+           apply plus_comm to _ H10. apply plus_assoc_rl to H12 H11. search.
+
+Theorem factorize_l : forall X Y Z XY XZ XY+XZ,
+  nat Y -> times X Y XY -> times X Z XZ -> plus XY XZ XY+XZ ->
+  exists Y+Z, plus Y Z Y+Z /\ times X Y+Z XY+XZ.
+induction on 2. intros. case H2.
+  case H3. case H4. apply plus_total to H1 with N = Z. search.
+  case H3. apply plus_perm4 to H6 H8 H4. apply IH to H1 H5 H7 H9.
+           apply plus_det to H10 H12. search.
+
+Theorem factorize_r : forall X Y Z XZ YZ XZ+YZ,
+  times X Z XZ -> times Y Z YZ -> plus XZ YZ XZ+YZ ->
+  exists X+Y, plus X Y X+Y /\ times X+Y Z XZ+YZ.
+induction on 1. intros. case H1 (keep).
+  case H3. search.
+  case H2 (keep).
+    apply plus_nat1 to H3. apply plus_zero to H6. apply plus_det to H3 H7.
+                           apply times_nat1 to H1. apply plus_zero to H8. search.
+    apply plus_perm4 to H5 H7 H3. apply plus_assoc_rl to H9 H10.
+                                  apply plus_assoc to H8 H11.
+                                  apply plus_det to H13 H7.
+                                  apply IH to H4 H2 H14. search.
+
+Theorem times_assoc : forall A B C AB ABC,
+  nat B -> nat C -> times A B AB -> times AB C ABC ->
+  exists BC, times B C BC /\ times A BC ABC.
+induction on 3. intros. case H3.
+  case H4. apply times_total_nat to H1 H2. search.
+  apply distribute_r to _ H6 H4. apply IH to _ _ H5 H7.
+                                 apply times_det to H8 H10. search.
