@@ -278,6 +278,14 @@ induction on 1. intros. case H1.
   search.
   apply IH to H4 H2. search.
 
+% Head normal forms and strongly head-normalizing terms
+
+Define head_nf : tm -> prop by
+  head_nf T := forall T', head T T' -> false.
+
+Define head_sn : tm -> prop by
+  head_sn T := forall T', head T T' -> head_sn T'.
+
 /***********************************************************/
 /*                   Non-head reduction                    */
 /***********************************************************/
@@ -440,3 +448,56 @@ induction on 2. intros. case H2.
     apply pnhead_nhead* to H12.
     apply nhead*_trans to H13 H7.
     search.
+
+/***********************************************************/
+/*                  Head essential system                  */
+/***********************************************************/
+
+Theorem persistence : forall T S U,
+  head T S -> nhead T U -> exists R, head U R.
+induction on 1. intros. case H1.
+  case H2.
+    search.
+    search.
+    case H3. search.
+  case H2.
+    search.
+    apply IH to H3 H4. case H5.
+      search.
+      search.
+      search.
+  case H2. apply IH to H3 H4. search.
+
+Theorem determinism : forall T U1 U2, head T U1 -> head T U2 -> U1 = U2.
+induction on 1. intros. case H1.
+  case H2. search.
+  case H2. apply IH to H3 H4. search.
+  case H2. apply IH to H3 H4. search.
+
+Theorem uniform_termination : forall T T',
+  head* T T' -> head_nf T' -> head_sn T.
+induction on 1. intros. unfold. intros. case H1.
+  case H2. apply H4 to H3.
+  apply determinism to H3 H4. backchain IH.
+
+Theorem terminal_factorization : forall T U,
+  tm T -> beta* T U -> head_nf U -> exists S, head* T S /\ nhead* S U.
+intros. backchain factorization.
+
+/***********************************************************/
+/*                   Head normalization                    */
+/***********************************************************/
+
+Theorem persistence* : forall T S U,
+  head T S -> nhead* T U -> exists R, head U R.
+induction on 2. intros. case H2.
+  search.
+  apply persistence to H1 H3. apply IH to H5 H4. search.
+
+Theorem normalization : forall T U,
+  tm T -> beta* T U -> head_nf U -> head_sn T.
+intros.
+apply terminal_factorization to H1 H2 H3.
+assert head_nf S.
+  unfold. intros. apply persistence* to H6 H5. case H3. backchain H8.
+backchain uniform_termination.
