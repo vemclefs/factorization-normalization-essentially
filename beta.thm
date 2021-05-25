@@ -1,0 +1,261 @@
+Kind  nat  type.
+
+Import "nat".
+
+/***********************************************************/
+/*               Definition of lambda-terms                */
+/***********************************************************/
+
+Kind  tm   type.
+
+Type  abs  (tm -> tm) -> tm.
+Type  app  tm -> tm -> tm.
+
+Define tm : tm -> prop by
+  nabla x, tm x;
+  tm (abs T) := nabla x, tm (T x);
+  tm (app T U) := tm T /\ tm U.
+
+Theorem subst_tm : forall T U, nabla x, tm (T x) -> tm U -> tm (T U).
+induction on 1. intros. case H1.
+  search.
+  search.
+  apply IH to H3 H2. search.
+  apply IH to H3 H2. apply IH to H4 H2. search.
+
+/***********************************************************/
+/*   Number of free occurrences of a variable in a term    */
+/***********************************************************/
+
+Define free_occ : (tm -> tm) -> nat -> prop by
+  nabla y, free_occ (x\ y) z;
+  free_occ (x\ x) (s z);
+  free_occ (x\ app (T x) (U x)) K :=
+    exists M N, free_occ T M /\ free_occ U N /\ plus M N K;
+  free_occ (x\ abs (T x)) N := nabla y, free_occ (x\ T x y) N.
+
+Theorem free_occ_nat : forall T N, free_occ T N -> nat N.
+induction on 1. intros. case H1.
+  search.
+  search.
+  apply IH to H3. backchain plus_nat3.
+  apply IH to H2. search.
+
+Theorem free_occ_det : forall T N M, free_occ T N -> free_occ T M -> N = M.
+induction on 1. intros. case H1.
+  case H2. search.
+  case H2. search.
+  case H2. apply IH to H3 H6. apply IH to H4 H7. backchain plus_det.
+  case H2. apply IH to H3 H4. search.
+
+Theorem free_occ_total : forall T, nabla x,
+  tm (T x) -> exists N, nat N /\ free_occ T N.
+induction on 1. intros. case H1.
+  search.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. apply IH to H3. apply plus_total_nat to H4 H6. search.
+
+Theorem free_occ_fresh : forall T, tm T -> free_occ (x\ T) z.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. apply IH to H3. search.
+
+Theorem free_occ_subst1 : forall T U N, nabla x y,
+  tm (T x y) -> tm U -> free_occ (T x) N -> free_occ (T U) N.
+induction on 3. intros. case H3.
+  search.
+  backchain free_occ_fresh.
+  search.
+  case H1. apply IH to H7 H2 H4. apply IH to H8 H2 H5. search.
+  case H1. apply IH to _ H2 H4. search.
+
+Theorem free_occ_subst2 : forall T U K Ty, nabla x y,
+  tm (T x y) -> tm (U x) -> free_occ (x\ T x (U x)) K -> free_occ (T x) Ty ->
+  exists Tx Ux TyUx, free_occ (x\ T x y) Tx /\ free_occ U Ux /\
+                     times Ty Ux TyUx /\ plus Tx TyUx K.
+induction on 1. intros. case H1.
+  % Variable different from x and y
+  case H3. case H4.
+  apply free_occ_total to H2 with x = n1.
+  search.
+
+  % Variable y
+  case H4. search.
+
+  % Variable x
+  case H3. case H4.
+  apply free_occ_total to H2.
+  search.
+
+  % Abstraction
+  case H3. case H4.
+  apply IH to H5 H2 _ _.
+  search.
+
+  % Application
+  case H3. case H4.
+  apply IH to H5 H2 H7 H10. apply IH to H6 H2 H8 H11.
+  apply free_occ_det to H14 H18.
+  apply plus_perm4 to H16 H20 H9.
+  apply factorize_r to H15 H19 H22.
+  apply plus_det to H12 H24.
+  search.
+
+/***********************************************************/
+/*                     Beta reduction                      */
+/***********************************************************/
+
+Define beta : tm -> tm -> prop by
+  beta (app (abs T) U) (T U);
+  beta (app T U) (app T' U) := beta T T';
+  beta (abs T) (abs T') := nabla x, beta (T x) (T' x);
+  beta (app T U) (app T U') := beta U U'.
+
+Theorem beta_tm : forall T T', tm T -> beta T T' -> tm T'.
+induction on 2. intros. case H2.
+  case H1. case H3. apply subst_tm to H5 H4. search.
+  case H1. apply IH to H4 H3. search.
+  case H1. apply IH to H4 H3. search.
+  case H1. apply IH to H5 H3. search.
+
+Define beta* : tm -> tm -> prop by
+  beta* T T;
+  beta* T U := exists S, beta T S /\ beta* S U.
+
+Theorem beta*_trans : forall T S U, beta* T S -> beta* S U -> beta* T U.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H4 H2. search.
+
+Theorem beta*_abs : forall T T', nabla x,
+  beta* (T x) (T' x) -> beta* (abs T) (abs T').
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3. search.
+
+Theorem beta*_app : forall T T' U U',
+  beta* T T' -> beta* U U' -> beta* (app T U) (app T' U').
+induction on 1. induction on 2. intros. case H1 (keep).
+  case H2.
+    search.
+    apply IH1 to H1 H4. search.
+  apply IH to H4 H2. search.
+
+/***********************************************************/
+/*                 Parallel beta reduction                 */
+/***********************************************************/
+
+Define pbeta : tm -> tm -> prop by
+  nabla x, pbeta x x;
+  pbeta (abs T) (abs T') := nabla x, pbeta (T x) (T' x);
+  pbeta (app T U) (app T' U') := pbeta T T' /\ pbeta U U';
+  pbeta (app (abs T) U) (T' U') := nabla x, pbeta (T x) (T' x) /\ pbeta U U'.
+
+Theorem pbeta_tm : forall T T', pbeta T T' -> tm T'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. apply IH to H3. search.
+  apply IH to H2. apply IH to H3. apply subst_tm to H4 H5. search.
+
+Theorem pbeta_refl : forall T, tm T -> pbeta T T.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. apply IH to H3. search.
+
+Theorem beta_pbeta : forall T T', tm T -> beta T T' -> pbeta T T'.
+induction on 2. intros. case H2.
+  case H1. case H3. apply pbeta_refl to H5. apply pbeta_refl to H4. search.
+  case H1. apply IH to H4 H3. apply pbeta_refl to H5. search.
+  case H1. apply IH to H4 H3. search.
+  case H1. apply pbeta_refl to H4. apply IH to H5 H3. search.
+
+Theorem pbeta_beta* : forall T T', pbeta T T' -> beta* T T'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. backchain beta*_abs.
+  apply IH to H2. apply IH to H3. backchain beta*_app.
+  apply IH to H2. apply beta*_abs to H4. apply IH to H3.
+                  apply beta*_app to H5 H6. backchain beta*_trans.
+
+/***********************************************************/
+/*             Indexed parallel beta reduction             */
+/***********************************************************/
+
+Define ipbeta : tm -> tm -> nat -> prop by
+  nabla x, ipbeta x x z;
+  ipbeta (abs T) (abs T') N := nabla x, ipbeta (T x) (T' x) N;
+  ipbeta (app T U) (app T' U') K := exists M N,
+    ipbeta T T' M /\ ipbeta U U' N /\ plus M N K;
+  ipbeta (app (abs T) U) (T' U') (s K) := exists M N foT' foT'N, nabla x,
+    ipbeta (T x) (T' x) M /\ ipbeta U U' N /\
+    free_occ T' foT' /\ times foT' N foT'N /\ plus M foT'N K.
+
+Theorem ipbeta_nat : forall T T' N, ipbeta T T' N -> nat N.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H3. backchain plus_nat3.
+  apply IH to H3. apply times_nat3 to _ H5. apply plus_nat3 to _ H6. search.
+
+Theorem ipbeta_pbeta : forall T T' N, ipbeta T T' N -> pbeta T T'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. apply IH to H3. search.
+  apply IH to H2. apply IH to H3. search.
+
+Theorem pbeta_ipbeta : forall T T',
+  pbeta T T' -> exists N, nat N /\ ipbeta T T' N.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. apply IH to H3. apply plus_total_nat to H4 H6. search.
+  apply IH to H2. apply IH to H3. apply pbeta_tm to H2.
+                  apply free_occ_total to H8. apply times_total_nat to H9 H6.
+                  apply plus_total_nat to H4 H11. search.
+
+Theorem ipbeta_tm : forall T T' N, ipbeta T T' N -> tm T'.
+intros. apply ipbeta_pbeta to H1. backchain pbeta_tm.
+
+Theorem ipbeta_substitutivity : forall T T' U U' M N K foT' foT'N, nabla x,
+  ipbeta (T x) (T' x) M -> ipbeta U U' N -> free_occ T' foT' ->
+  times foT' N foT'N -> plus M foT'N K -> ipbeta (T U) (T' U') K.
+induction on 1. intros. case H1.
+  % Variable different from x
+  case H3. case H4. case H5. search.
+
+  % Variable x
+  case H3. case H4. case H6. case H7. case H5. search.
+
+  % Abstraction
+  case H3. apply IH to H6 H2 _ H4 H5. search.
+
+  % Application
+  case H3.
+  apply distribute_r to _ H11 H4.
+    backchain ipbeta_nat.
+  apply plus_perm4 to H8 H14 H5.
+  apply IH to H6 H2 H9 H12 H15. apply IH to H7 H2 H10 H13 H16.
+  search.
+
+  % Beta-step
+  case H5.
+  apply ipbeta_nat to H2.
+  apply ipbeta_tm to H6. apply ipbeta_tm to H7.
+  apply free_occ_subst2 to H13 H14 H3 H8.
+  apply distribute_r to _ H18 H4.
+  apply times_assoc to _ _ H17 H20.
+    backchain free_occ_nat.
+  clear H3 H4 H12 H14 H17 H18 H20.
+  apply plus_perm4 to H10 H21 H11.
+  apply factorize_l to _ H9 H23 H25.
+    backchain ipbeta_nat.
+  clear H9 H10 H11 H21 H23 H25.
+  apply IH to H6 H2 H15 H19 H24. apply IH to H7 H2 H16 H22 H27.
+  apply ipbeta_tm to H2.
+  apply free_occ_subst1 to H13 H31 H8.
+  search.
