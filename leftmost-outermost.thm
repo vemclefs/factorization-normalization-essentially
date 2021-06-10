@@ -96,7 +96,7 @@ induction on 1. intros. case H1.
   search.
   apply IH to H4 H2. search.
 
-% lo normal forms and strongly lo-normalizing terms
+% Strongly lo-normalizing terms
 
 Define lo_sn : tm -> prop by
   lo_sn T := forall T', lo T T' -> lo_sn T'.
