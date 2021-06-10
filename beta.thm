@@ -153,7 +153,14 @@ Define pbeta : tm -> tm -> prop by
   pbeta (app T U) (app T' U') := pbeta T T' /\ pbeta U U';
   pbeta (app (abs T) U) (T' U') := nabla x, pbeta (T x) (T' x) /\ pbeta U U'.
 
-Theorem pbeta_tm : forall T T', pbeta T T' -> tm T'.
+Theorem pbeta_tm1 : forall T T', pbeta T T' -> tm T.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. apply IH to H3. search.
+  apply IH to H2. apply IH to H3. search.
+
+Theorem pbeta_tm2 : forall T T', pbeta T T' -> tm T'.
 induction on 1. intros. case H1.
   search.
   apply IH to H2. search.
@@ -214,12 +221,12 @@ induction on 1. intros. case H1.
   search.
   apply IH to H2. search.
   apply IH to H2. apply IH to H3. apply plus_total_nat to H4 H6. search.
-  apply IH to H2. apply IH to H3. apply pbeta_tm to H2.
+  apply IH to H2. apply IH to H3. apply pbeta_tm2 to H2.
                   apply free_occ_total to H8. apply times_total_nat to H9 H6.
                   apply plus_total_nat to H4 H11. search.
 
-Theorem ipbeta_tm : forall T T' N, ipbeta T T' N -> tm T'.
-intros. apply ipbeta_pbeta to H1. backchain pbeta_tm.
+Theorem ipbeta_tm2 : forall T T' N, ipbeta T T' N -> tm T'.
+intros. apply ipbeta_pbeta to H1. backchain pbeta_tm2.
 
 Theorem ipbeta_substitutivity : forall T T' U U' M N K foT' foT'N, nabla x,
   ipbeta (T x) (T' x) M -> ipbeta U U' N -> free_occ T' foT' ->
@@ -245,7 +252,7 @@ induction on 1. intros. case H1.
   % Beta-step
   case H5.
   apply ipbeta_nat to H2.
-  apply ipbeta_tm to H6. apply ipbeta_tm to H7.
+  apply ipbeta_tm2 to H6. apply ipbeta_tm2 to H7.
   apply free_occ_subst2 to H13 H14 H3 H8.
   apply distribute_r to _ H18 H4.
   apply times_assoc to _ _ H17 H20.
@@ -256,6 +263,6 @@ induction on 1. intros. case H1.
     backchain ipbeta_nat.
   clear H9 H10 H11 H21 H23 H25.
   apply IH to H6 H2 H15 H19 H24. apply IH to H7 H2 H16 H22 H27.
-  apply ipbeta_tm to H2.
+  apply ipbeta_tm2 to H2.
   apply free_occ_subst1 to H13 H31 H8.
   search.

@@ -1,0 +1,365 @@
+Kind  nat  type.
+Kind  tm   type.
+
+Import "beta".
+
+/***********************************************************/
+/*                Normal and neutral terms                 */
+/***********************************************************/
+
+Define normal  : tm -> prop,
+       neutral : tm -> prop by
+  nabla x, neutral x;
+  neutral (app T U) := neutral T /\ normal U;
+  normal T := neutral T;
+  normal (abs T) := nabla x, normal (T x).
+
+Theorem normal_neutral_tm :
+  (forall T, normal T -> tm T) /\ (forall T, neutral T -> tm T).
+induction on 1 1. split.
+  intros. case H1.
+    backchain IH1.
+    apply IH to H2. search.
+  intros. case H1.
+    search.
+    apply IH1 to H2. apply IH to H3. search.
+
+Split normal_neutral_tm as normal_tm, neutral_tm.
+
+Theorem normal_def : forall T T', normal T -> beta T T' -> false.
+induction on 2. intros. case H2.
+  case H1. case H3. case H4.
+  case H1. case H4. apply IH to _ H3.
+  case H1.
+    case H4.
+    apply IH to H4 H3.
+  case H1. case H4. apply IH to H6 H3.
+
+Theorem normal_non-normal : forall T, tm T -> normal T \/ exists T', beta T T'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. case H3.
+    search.
+    search.
+  apply IH to H2. case H4.
+    case H5.
+      apply IH to H3. case H7.
+        search.
+        search.
+      search.
+    search.
+
+Theorem abs_non-normal-app_neutral : forall T,
+  tm T -> (exists T1, T = abs T1) \/
+          (exists T1 T2 T', T = app T1 T2 /\ beta T T') \/
+          neutral T.
+intros. case H1 (keep).
+  search.
+  search.
+  apply normal_non-normal to H1. case H4.
+    case H5. search.
+    search.
+
+Theorem ipbeta_normal : forall T T' N,
+  ipbeta T T' N -> normal T -> T = T' /\ N = z.
+induction on 1. intros. case H1.
+  search.
+  case H2.
+    case H4.
+    apply IH to H3 H4. search.
+  case H2. case H6. apply IH to H3 _. apply IH to H4 H8. case H5. search.
+  case H2. case H8. case H9.
+
+/***********************************************************/
+/*              Leftmost-outermost reduction               */
+/***********************************************************/
+
+Define lo : tm -> tm -> prop by
+  lo (app (abs T) U) (T U);
+  lo (app (app T1 T2) U) (app T' U) := lo (app T1 T2) T';
+  lo (abs T) (abs T') := nabla x, lo (T x) (T' x);
+  lo (app T U) (app T U') := neutral T /\ lo U U'.
+
+Theorem lo_beta : forall T T', lo T T' -> beta T T'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply IH to H2. search.
+  apply IH to H3. search.
+
+Define lo* : tm -> tm -> prop by
+  lo* T T;
+  lo* T U := exists S, lo T S /\ lo* S U.
+
+Theorem lo*_trans : forall T S U, lo* T S -> lo* S U -> lo* T U.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H4 H2. search.
+
+% lo normal forms and strongly lo-normalizing terms
+
+Define lo_sn : tm -> prop by
+  lo_sn T := forall T', lo T T' -> lo_sn T'.
+
+/***********************************************************/
+/*                    Non-lo reduction                     */
+/***********************************************************/
+
+Define nlo : tm -> tm -> prop by
+  nlo (app (abs T) U) (app (abs T') U) := nabla x, beta (T x) (T' x);
+  nlo (app (abs T) U) (app (abs T) U') := beta U U';
+  nlo (app T U) (app T U') := (exists S, beta T S) /\ beta U U';
+  nlo (app T U) (app T' U) := nlo T T';
+  nlo (app T U) (app T U') := neutral T /\ nlo U U';
+  nlo (abs T) (abs T') := nabla x, nlo (T x) (T' x).
+
+Theorem nlo_beta : forall T T', nlo T T' -> beta T T'.
+induction on 1. intros. case H1.
+  search.
+  search.
+  search.
+  apply IH to H2. search.
+  apply IH to H3. search.
+  apply IH to H2. search.
+
+Define nlo* : tm -> tm -> prop by
+  nlo* T T;
+  nlo* T U := exists S, nlo T S /\ nlo* S U.
+
+Theorem nlo*_trans : forall T S U, nlo* T S -> nlo* S U -> nlo* T U.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H4 H2. search.
+
+/***********************************************************/
+/*                Parallel non-lo reduction                */
+/***********************************************************/
+
+Define pnlo : tm -> tm -> prop by
+  nabla x, pnlo x x;
+  pnlo (app T U) (app T' U') := (exists S, beta T S) /\ pnlo T T' /\ pbeta U U';
+  pnlo (app (abs T) U) (app (abs T') U') :=
+    nabla x, pbeta (T x) (T' x) /\ pbeta U U';
+  pnlo (abs T) (abs T') := nabla x, pnlo (T x) (T' x);
+  pnlo (app T U) (app T U') := neutral T /\ pnlo U U'.
+
+Theorem pnlo_refl : forall T, tm T -> pnlo T T.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. search.
+  apply abs_non-normal-app_neutral to H2. case H4.
+    case H2. apply pbeta_refl to H5. apply pbeta_refl to H3. search.
+    apply IH to H2. apply pbeta_refl to H3. search.
+    apply IH to H3. search.
+
+Theorem pnlo_pbeta : forall T T', pnlo T T' -> pbeta T T'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3. search.
+  search.
+  apply IH to H2. search.
+  apply neutral_tm to H2. apply pbeta_refl to H4. apply IH to H3. search.
+
+/***********************************************************/
+/*                 lo essential properties                 */
+/***********************************************************/
+
+Theorem fullness : forall T S, tm T -> beta T S -> exists U, lo T U.
+induction on 1. intros. case H1.
+  case H2.
+  case H2. apply IH to H3 H4. search.
+  apply abs_non-normal-app_neutral to H3. case H5.
+    search.
+    apply IH to H3 H6. search.
+    case H2.
+      case H6.
+      apply normal_def to _ H7.
+      apply IH to H4 H7. search.
+
+Theorem determinism : forall T U1 U2, lo T U1 -> lo T U2 -> U1 = U2.
+induction on 1. intros. case H1.
+  case H2.
+    search.
+    case H3.
+  case H2.
+    apply IH to H3 H4. search.
+    apply lo_beta to H3. apply normal_def to _ H6.
+  case H2. apply IH to H3 H4. search.
+  case H2.
+    case H3.
+    apply lo_beta to H5. apply normal_def to _ H6.
+    apply IH to H4 H6. search.
+
+Theorem uniform_termination : forall T T',
+  lo* T T' -> normal T' -> lo_sn T.
+induction on 1. intros. unfold. intros. case H1.
+  apply lo_beta to H3. apply normal_def to H2 H4.
+  apply determinism to H3 H4. backchain IH.
+
+Theorem persistence_beta : forall T U, nlo T U -> exists R, beta U R.
+induction on 1. intros. case H1.
+  search.
+  search.
+  search.
+  apply IH to H2. search.
+  apply IH to H3. search.
+  apply IH to H2. search.
+
+Theorem nlo*_normal : forall T U,
+  nlo* T U -> normal U -> T = U.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H4 H2. apply persistence_beta to H3. apply normal_def to H2 H5.
+
+/***********************************************************/
+/*                  lo macro-step system                   */
+/***********************************************************/
+
+Theorem beta_lo_nlo : forall T T', tm T -> beta T T' -> lo T T' \/ nlo T T'.
+induction on 2. intros. case H2.
+  search.
+  case H1. apply IH to _ H3. case H6.
+    case H4.
+      case H3.
+      case H3. search.
+      search.
+    search.
+  case H1. apply IH to _ H3. case H5.
+    search.
+    search.
+  case H1. apply abs_non-normal-app_neutral to H4. case H6.
+    search.
+    search.
+    apply IH to _ H3. case H8.
+      search.
+      search.
+
+Theorem nlo_pnlo : forall T T', tm T -> nlo T T' -> pnlo T T'.
+induction on 2. intros. case H2.
+  case H1. case H4. apply beta_pbeta to _ H3. apply pbeta_refl to H5. search.
+  case H1. case H4. apply pbeta_refl to H6. apply beta_pbeta to _ H3. search.
+  case H1. apply pnlo_refl to H5. apply beta_pbeta to _ H4. search.
+  case H1. apply nlo_beta to H3. apply IH to _ H3. apply pbeta_refl to H5.
+           search.
+  case H1. apply IH to _ H4. search.
+  case H1. apply IH to _ H3. search.
+
+Theorem nlo*_app_non-normal : forall T T' U U' S,
+  beta T S -> nlo* T T' -> beta* U U' -> nlo* (app T U) (app T' U').
+induction on 2. induction on 3. intros. case H2 (keep).
+  case H3.
+    search.
+    apply IH1 to H1 H2 H5. search.
+  apply persistence_beta to H4. apply IH to H6 H5 H3. search.
+
+Theorem nlo*_redex : forall T T' U U', nabla x,
+  beta* (T x) (T' x) -> beta* U U' -> nlo* (app (abs T) U) (app (abs T') U').
+induction on 1. induction on 2. intros. case H1 (keep).
+  case H2.
+    search.
+    apply IH1 to H1 H4. search.
+  apply IH to H4 H2. search.
+
+Theorem nlo*_abs : forall T T', nabla x,
+  nlo* (T x) (T' x) -> nlo* (abs T) (abs T').
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3. search.
+
+Theorem nlo*_app_neutral : forall T U U',
+  neutral T -> nlo* U U' -> nlo* (app T U) (app T U').
+induction on 2. intros. case H2.
+  search.
+  apply IH to H1 H4. search.
+
+Theorem pnlo_nlo* : forall T T', pnlo T T' -> nlo* T T'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3. apply pbeta_beta* to H4. backchain nlo*_app_non-normal.
+  apply pbeta_beta* to H2. apply pbeta_beta* to H3. backchain nlo*_redex.
+  apply IH to H2. backchain nlo*_abs.
+  apply IH to H3. backchain nlo*_app_neutral.
+
+Theorem merge : forall T S U, pnlo T S -> lo S U -> pbeta T U.
+induction on 1. intros. case H1.
+  case H2.
+  case H2.
+    case H4. apply pnlo_pbeta to H6. search.
+    apply IH to H4 H6. search.
+    apply pnlo_nlo* to H4. apply nlo*_normal to H8 _. apply normal_def to _ H3.
+  case H2.
+    search.
+    case H5.
+  case H2. apply IH to H3 H4. search.
+  case H2.
+    case H3.
+    apply lo_beta to H5. apply normal_def to _ H6.
+    apply IH to H4 H6. apply neutral_tm to H3. apply pbeta_refl to H8. search.
+
+Theorem indexed_split : forall T U N,
+  ipbeta T U N -> pnlo T U \/
+                  exists N' S, N = s N' /\ lo T S /\ ipbeta S U N'.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2. case H3.
+    search.
+    search.
+  apply ipbeta_pbeta to H2. apply ipbeta_pbeta to H3. apply pbeta_tm1 to H5.
+                            apply abs_non-normal-app_neutral to H7. case H8.
+    case H5. search.
+    apply IH to H2. case H10.
+      search.
+      case H4. search.
+    apply ipbeta_normal to H2 _. case H4. apply IH to H3. case H10.
+      search.
+      search.
+  apply ipbeta_substitutivity to H2 H3 H4 H5 H6. search.
+
+Theorem split_ : forall T U, pbeta T U -> exists S, lo* T S /\ pnlo S U.
+assert forall T U N, nat N -> ipbeta T U N -> exists S, lo* T S /\ pnlo S U.
+  induction on 1. intros. apply indexed_split to H2. case H3.
+    search.
+    case H1. apply IH to H6 H5. search.
+intros. apply pbeta_ipbeta to H2. backchain H1.
+
+/***********************************************************/
+/*                    lo factorization                     */
+/***********************************************************/
+
+Theorem postpone_pnlo_lo* : forall T S U,
+  pnlo T S -> lo* S U -> exists S', lo* T S' /\ pnlo S' U.
+induction on 2. intros. case H2.
+  search.
+  apply merge to H1 H3. apply split_ to H5. apply IH to H7 H4.
+                        apply lo*_trans to H6 H8. search.
+
+Theorem factorization : forall T U,
+  tm T -> beta* T U -> exists S, lo* T S /\ nlo* S U.
+induction on 2. intros. case H2.
+  search.
+  apply beta_tm to _ H3. apply IH to _ H4. apply beta_lo_nlo to _ H3. case H8.
+    % lo
+    search.
+    % Non-lo
+    apply nlo_pnlo to _ H9.
+    apply postpone_pnlo_lo* to H10 H6.
+    apply pnlo_nlo* to H12.
+    apply nlo*_trans to H13 H7.
+    search.
+
+Theorem terminal_factorization : forall T U,
+  tm T -> beta* T U -> normal U -> lo* T U.
+intros.
+apply factorization to _ H2.
+apply nlo*_normal to H5 H3.
+search.
+
+/***********************************************************/
+/*                    lo normalization                     */
+/***********************************************************/
+
+Theorem normalization : forall T U,
+  tm T -> beta* T U -> normal U -> lo_sn T.
+intros.
+apply terminal_factorization to H1 H2 H3.
+backchain uniform_termination.
