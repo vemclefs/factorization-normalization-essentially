@@ -1,0 +1,176 @@
+Kind  nat  type.
+Kind  tm   type.
+
+Import "head".
+
+Define head_ctx : tm -> tm -> prop by
+  head_ctx T T;
+  head_ctx T (app HT U) := head_ctx T HT;
+  nabla x, head_ctx (T x) (abs HT) := nabla x, head_ctx (T x) (HT x).
+
+Define solvable : tm -> prop by
+  solvable T := exists HT, tm HT /\ head_ctx T HT /\ beta* HT (abs x\ x).
+
+/***********************************************************/
+/*            Solvable implies head normalizing            */
+/***********************************************************/
+
+Theorem head_sn_abs : forall T, nabla x, head_sn (abs T) -> head_sn (T x).
+induction on 1. intros. case H1. unfold. intros.
+apply H2 to _. backchain IH.
+
+Theorem head_sn_abs' : forall T, nabla x, head_sn (T x) -> head_sn (abs T).
+induction on 1. intros. case H1. unfold. intros.
+case H3. apply H2 to H4. backchain IH.
+
+Theorem head_subst : forall T T' (U : tm), nabla x,
+  head (T x) (T' x) -> head (T U) (T' U).
+induction on 1. intros. case H1.
+  search.
+  apply IH to H2 with U = U. search.
+  apply IH to H2 with U = U. search.
+
+Theorem head_sn_subst : forall T (U : tm), nabla x,
+  head_sn (T U) -> head_sn (T x).
+induction on 1. intros. case H1. unfold. intros.
+apply head_subst to H3 with U = U. apply H2 to H4. backchain IH.
+
+Theorem head_sn_app : forall T U, head_sn (app T U) -> head_sn T.
+induction on 1. intros. case H1. unfold. intros.
+case H3.
+  apply H2 to _. backchain IH.
+  apply H2 to _. backchain IH.
+  apply H2 to _. apply head_sn_subst to H5 with T = T1. case H6.
+                 apply H7 to H4. backchain head_sn_abs'.
+
+Theorem head_sn_head_ctx : forall T HT,
+  head_ctx T HT -> head_sn HT -> head_sn T.
+induction on 1. intros. case H1.
+  search.
+  apply head_sn_app to H2. backchain IH.
+  apply head_sn_abs to H2. backchain IH.
+
+Theorem head_nf_I : head_nf (abs x\ x).
+unfold. intros. case H1. case H2.
+
+Theorem solvable_head_sn : forall T, solvable T -> head_sn T.
+intros. case H1.
+apply normalization to _ H4 head_nf_I.
+backchain head_sn_head_ctx.
+
+/***********************************************************/
+/*            Head normalizing implies solvable            */
+/***********************************************************/
+
+Define app_ctx : (tm -> tm) -> prop by
+  app_ctx y\ y;
+  app_ctx y\ app (A y) (U y) := app_ctx A.
+
+Define hnf_free : (tm -> tm) -> prop by
+  hnf_free T := app_ctx T;
+  hnf_free y\ abs (T y) := nabla x, hnf_free y\ T y x.
+
+Define hnf_bound : tm -> prop by
+  hnf_bound (abs T) := hnf_free T;
+  hnf_bound (abs T) := nabla x, hnf_bound (T x).
+
+Define hnf : tm -> prop by
+  nabla y, hnf (T y) := hnf_free T;
+  hnf T := hnf_bound T.
+
+Theorem head_nf_hnf : forall T, tm T -> head_nf T -> hnf T.
+induction on 1. intros. case H2. case H1.
+  search.
+  apply IH to H4 _. unfold. intros. apply H3 to _. case H5.
+    search.
+    search.
+    search.
+  case H4 (keep).
+    search.
+    apply H3 to _.
+    apply IH to H4 _. unfold. intros. apply H3 to _. case H8.
+      case H9. search.
+      case H9.
+
+Theorem app_ctx_erase : forall A T,
+  app_ctx A -> tm T -> exists E, tm E /\ beta* (A E) T.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3 _ with T = abs z\ T. apply beta*_app to H5 _ with U = U E.
+                                      apply beta*_trans to H6 _ with U = T.
+                                      search.
+
+Define app_ctx' : tm -> tm -> prop by
+  app_ctx' T T;
+  app_ctx' T AT := exists U, app_ctx' (app T U) AT.
+
+Theorem app_ctx'_tm : forall T AT, app_ctx' T AT -> tm AT -> tm T.
+induction on 1. intros. case H1.
+  search.
+  apply IH to H3 H2. case H4. search.
+
+Theorem app_ctx'_beta : forall T T' AT',
+  tm T -> tm AT' -> app_ctx' T' AT' -> beta T T' ->
+  exists AT, tm AT /\ app_ctx' T AT /\ beta AT AT'.
+induction on 3. intros. case H3.
+  search.
+  apply app_ctx'_tm to H5 H2. case H6. apply IH to _ _ H5 _. search.
+
+Theorem hnf_free_solvable : forall T, nabla x,
+  tm (T x) -> hnf_free T ->
+  exists E S, tm E /\ tm S /\ app_ctx' (T E) S /\ beta* S (abs x\ x).
+induction on 2. intros. case H2.
+  apply app_ctx_erase to H3 _ with T = abs x\ x. apply subst_tm to H1 H4.
+                                                 witness E, T E. search.
+  case H1. apply IH to _ H3. apply subst_tm to _ H5 with T = z\ T1 z n2.
+           apply app_ctx'_beta to _ _ H7 _ with T = app (abs (T1 (E n1))) n1.
+           witness E n1, AT n1. search.
+
+Theorem hnf_bound_solvable : forall T,
+  tm T -> hnf_bound T ->
+  exists AT, tm AT /\ app_ctx' T AT /\ beta* AT (abs x\ x).
+induction on 2. intros. case H2.
+  case H1. apply hnf_free_solvable to _ H3.
+           apply app_ctx'_beta to _ _ H7 _ with T = app (abs T1) E. search.
+  case H1. apply IH to _ H3.
+           apply app_ctx'_beta to _ _ H6 _ with T = app (abs T1) n1. search.
+
+Theorem app_ctx'_head_ctx : forall T HT AHT,
+  head_ctx T HT -> app_ctx' HT AHT -> head_ctx T AHT.
+induction on 2. intros. case H2.
+  search.
+  apply IH to _ H3 with T = T. search.
+
+Theorem hnf_solvable : forall T, tm T -> head_nf T -> solvable T.
+intros. apply head_nf_hnf to _ H2. case H3.
+  apply hnf_bound_solvable to _ _. apply app_ctx'_head_ctx to _ H6 with T = T n1.
+                                   search.
+  apply hnf_bound_solvable to _ H4. apply app_ctx'_head_ctx to _ H6. search.
+
+Theorem head_nf_head : forall T, tm T -> head_nf T \/ exists T', head T T'.
+induction on 1. intros. case H1.
+  left. unfold. intros. case H2.
+  apply IH to H2. case H3.
+    case H4. left. unfold. intros. case H6. apply H5 to H7.
+    search.
+  apply IH to H2. case H2.
+    left. unfold. intros. case H5.
+    search.
+    case H4.
+      case H7. left. unfold. intros. case H9. apply H8 to H10.
+      search.
+
+Theorem head_ctx_beta : forall T T' HT',
+  tm T -> tm HT' -> head_ctx T' HT' -> beta T T' ->
+  exists HT, tm HT /\ head_ctx T HT /\ beta HT HT'.
+induction on 3. intros. case H3.
+  search.
+  case H2. apply IH to _ _ H5 H4. witness app HT1 U. search.
+  case H2. apply IH to _ _ H5 H4. witness abs HT1. search.
+
+Theorem head_sn_solvable : forall T, tm T -> head_sn T -> solvable T.
+induction on 2. intros. case H2. apply head_nf_head to H1. case H4.
+  backchain hnf_solvable.
+  apply H3 to H5. apply head_beta to H5. apply beta_tm to _ H7.
+                  apply IH to _ H6. case H9.
+                  apply head_ctx_beta to _ _ H11 H7. search.
