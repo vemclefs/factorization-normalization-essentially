@@ -62,12 +62,12 @@ backchain head_sn_head_ctx.
 /*            Head normalizing implies solvable            */
 /***********************************************************/
 
-Define app_ctx : (tm -> tm) -> prop by
-  app_ctx y\ y;
-  app_ctx y\ app (A y) (U y) := app_ctx A.
+Define hnf_app : (tm -> tm) -> prop by
+  hnf_app y\ y;
+  hnf_app y\ app (A y) (U y) := hnf_app A.
 
 Define hnf_free : (tm -> tm) -> prop by
-  hnf_free T := app_ctx T;
+  hnf_free T := hnf_app T;
   hnf_free y\ abs (T y) := nabla x, hnf_free y\ T y x.
 
 Define hnf_bound : tm -> prop by
@@ -92,60 +92,60 @@ induction on 1. intros. case H2. case H1.
       case H9. search.
       case H9.
 
-Theorem app_ctx_erase : forall A T,
-  app_ctx A -> tm T -> exists E, tm E /\ beta* (A E) T.
+Theorem hnf_app_solvable : forall A T,
+  hnf_app A -> tm T -> exists E, tm E /\ beta* (A E) T.
 induction on 1. intros. case H1.
   search.
   apply IH to H3 _ with T = abs z\ T. apply beta*_app to H5 _ with U = U E.
                                       apply beta*_trans to H6 _ with U = T.
                                       search.
 
-Define app_ctx' : tm -> tm -> prop by
-  app_ctx' T T;
-  app_ctx' T AT := exists U, app_ctx' (app T U) AT.
+Define app_ctx : tm -> tm -> prop by
+  app_ctx T T;
+  app_ctx T AT := exists U, app_ctx (app T U) AT.
 
-Theorem app_ctx'_tm : forall T AT, app_ctx' T AT -> tm AT -> tm T.
+Theorem app_ctx_tm : forall T AT, app_ctx T AT -> tm AT -> tm T.
 induction on 1. intros. case H1.
   search.
   apply IH to H3 H2. case H4. search.
 
-Theorem app_ctx'_beta : forall T T' AT',
-  tm T -> tm AT' -> app_ctx' T' AT' -> beta T T' ->
-  exists AT, tm AT /\ app_ctx' T AT /\ beta AT AT'.
+Theorem app_ctx_beta : forall T T' AT',
+  tm T -> tm AT' -> app_ctx T' AT' -> beta T T' ->
+  exists AT, tm AT /\ app_ctx T AT /\ beta AT AT'.
 induction on 3. intros. case H3.
   search.
-  apply app_ctx'_tm to H5 H2. case H6. apply IH to _ _ H5 _. search.
+  apply app_ctx_tm to H5 H2. case H6. apply IH to _ _ H5 _. search.
 
 Theorem hnf_free_solvable : forall T, nabla x,
   tm (T x) -> hnf_free T ->
-  exists E S, tm E /\ tm S /\ app_ctx' (T E) S /\ beta* S (abs x\ x).
+  exists E S, tm E /\ tm S /\ app_ctx (T E) S /\ beta* S (abs x\ x).
 induction on 2. intros. case H2.
-  apply app_ctx_erase to H3 _ with T = abs x\ x. apply subst_tm to H1 H4.
+  apply hnf_app_solvable to H3 _ with T = abs x\ x. apply subst_tm to H1 H4.
                                                  witness E, T E. search.
   case H1. apply IH to _ H3. apply subst_tm to _ H5 with T = z\ T1 z n2.
-           apply app_ctx'_beta to _ _ H7 _ with T = app (abs (T1 (E n1))) n1.
+           apply app_ctx_beta to _ _ H7 _ with T = app (abs (T1 (E n1))) n1.
            witness E n1, AT n1. search.
 
 Theorem hnf_bound_solvable : forall T,
   tm T -> hnf_bound T ->
-  exists AT, tm AT /\ app_ctx' T AT /\ beta* AT (abs x\ x).
+  exists AT, tm AT /\ app_ctx T AT /\ beta* AT (abs x\ x).
 induction on 2. intros. case H2.
   case H1. apply hnf_free_solvable to _ H3.
-           apply app_ctx'_beta to _ _ H7 _ with T = app (abs T1) E. search.
+           apply app_ctx_beta to _ _ H7 _ with T = app (abs T1) E. search.
   case H1. apply IH to _ H3.
-           apply app_ctx'_beta to _ _ H6 _ with T = app (abs T1) n1. search.
+           apply app_ctx_beta to _ _ H6 _ with T = app (abs T1) n1. search.
 
-Theorem app_ctx'_head_ctx : forall T HT AHT,
-  head_ctx T HT -> app_ctx' HT AHT -> head_ctx T AHT.
+Theorem app_ctx_head_ctx : forall T HT AHT,
+  head_ctx T HT -> app_ctx HT AHT -> head_ctx T AHT.
 induction on 2. intros. case H2.
   search.
   apply IH to _ H3 with T = T. search.
 
-Theorem hnf_solvable : forall T, tm T -> head_nf T -> solvable T.
-intros. apply head_nf_hnf to _ H2. case H3.
-  apply hnf_bound_solvable to _ _. apply app_ctx'_head_ctx to _ H6 with T = T n1.
+Theorem hnf_solvable : forall T, tm T -> hnf T -> solvable T.
+intros. case H2.
+  apply hnf_bound_solvable to _ _. apply app_ctx_head_ctx to _ H5 with T = T n1.
                                    search.
-  apply hnf_bound_solvable to _ H4. apply app_ctx'_head_ctx to _ H6. search.
+  apply hnf_bound_solvable to _ H3. apply app_ctx_head_ctx to _ H5. search.
 
 Theorem head_nf_head : forall T, tm T -> head_nf T \/ exists T', head T T'.
 induction on 1. intros. case H1.
@@ -170,7 +170,7 @@ induction on 3. intros. case H3.
 
 Theorem head_sn_solvable : forall T, tm T -> head_sn T -> solvable T.
 induction on 2. intros. case H2. apply head_nf_head to H1. case H4.
-  backchain hnf_solvable.
+  backchain hnf_solvable. backchain head_nf_hnf.
   apply H3 to H5. apply head_beta to H5. apply beta_tm to _ H7.
                   apply IH to _ H6. case H9.
                   apply head_ctx_beta to _ _ H11 H7. search.
