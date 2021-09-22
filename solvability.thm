@@ -93,10 +93,10 @@ induction on 1. intros. case H2. case H1.
       case H9.
 
 Theorem hnf_app_solvable : forall T U,
-  hnf_app T -> tm U -> exists E, tm E /\ beta* (T E) U.
+  hnf_app T -> tm U -> exists R, tm R /\ beta* (T R) U.
 induction on 1. intros. case H1.
   search.
-  apply IH to H3 _ with U = abs z\ U. apply beta*_app to H5 _ with U = U1 E.
+  apply IH to H3 _ with U = abs z\ U. apply beta*_app to H5 _ with U = U1 R.
                                       apply beta*_trans to H6 _ with U = U.
                                       search.
 
@@ -118,20 +118,20 @@ induction on 3. intros. case H3.
 
 Theorem hnf_free_solvable : forall T, nabla x,
   tm (T x) -> hnf_free T ->
-  exists E S, tm E /\ tm S /\ app_ctx (T E) S /\ beta* S (abs x\ x).
+  exists R S, tm R /\ tm S /\ app_ctx (T R) S /\ beta* S (abs x\ x).
 induction on 2. intros. case H2.
   apply hnf_app_solvable to H3 _ with U = abs x\ x. apply subst_tm to H1 H4.
-                                                 witness E, T E. search.
+                                                 witness R, T R. search.
   case H1. apply IH to _ H3. apply subst_tm to _ H5 with T = z\ T1 z n2.
-           apply app_ctx_beta to _ _ H7 _ with T = app (abs (T1 (E n1))) n1.
-           witness E n1, AT n1. search.
+           apply app_ctx_beta to _ _ H7 _ with T = app (abs (T1 (R n1))) n1.
+           witness R n1, AT n1. search.
 
 Theorem hnf_bound_solvable : forall T,
   tm T -> hnf_bound T ->
   exists AT, tm AT /\ app_ctx T AT /\ beta* AT (abs x\ x).
 induction on 2. intros. case H2.
   case H1. apply hnf_free_solvable to _ H3.
-           apply app_ctx_beta to _ _ H7 _ with T = app (abs T1) E. search.
+           apply app_ctx_beta to _ _ H7 _ with T = app (abs T1) R. search.
   case H1. apply IH to _ H3.
            apply app_ctx_beta to _ _ H6 _ with T = app (abs T1) n1. search.
 
