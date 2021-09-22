@@ -64,7 +64,7 @@ backchain head_sn_head_ctx.
 
 Define hnf_app : (tm -> tm) -> prop by
   hnf_app y\ y;
-  hnf_app y\ app (A y) (U y) := hnf_app A.
+  hnf_app y\ app (T y) (U y) := hnf_app T.
 
 Define hnf_free : (tm -> tm) -> prop by
   hnf_free T := hnf_app T;
@@ -92,12 +92,12 @@ induction on 1. intros. case H2. case H1.
       case H9. search.
       case H9.
 
-Theorem hnf_app_solvable : forall A T,
-  hnf_app A -> tm T -> exists E, tm E /\ beta* (A E) T.
+Theorem hnf_app_solvable : forall T U,
+  hnf_app T -> tm U -> exists E, tm E /\ beta* (T E) U.
 induction on 1. intros. case H1.
   search.
-  apply IH to H3 _ with T = abs z\ T. apply beta*_app to H5 _ with U = U E.
-                                      apply beta*_trans to H6 _ with U = T.
+  apply IH to H3 _ with U = abs z\ U. apply beta*_app to H5 _ with U = U1 E.
+                                      apply beta*_trans to H6 _ with U = U.
                                       search.
 
 Define app_ctx : tm -> tm -> prop by
@@ -120,7 +120,7 @@ Theorem hnf_free_solvable : forall T, nabla x,
   tm (T x) -> hnf_free T ->
   exists E S, tm E /\ tm S /\ app_ctx (T E) S /\ beta* S (abs x\ x).
 induction on 2. intros. case H2.
-  apply hnf_app_solvable to H3 _ with T = abs x\ x. apply subst_tm to H1 H4.
+  apply hnf_app_solvable to H3 _ with U = abs x\ x. apply subst_tm to H1 H4.
                                                  witness E, T E. search.
   case H1. apply IH to _ H3. apply subst_tm to _ H5 with T = z\ T1 z n2.
            apply app_ctx_beta to _ _ H7 _ with T = app (abs (T1 (E n1))) n1.
